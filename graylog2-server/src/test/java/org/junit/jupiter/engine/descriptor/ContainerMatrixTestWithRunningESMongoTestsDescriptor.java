@@ -14,25 +14,20 @@
  * along with this program. If not, see
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
-package org.graylog.testing.completebackend;
+package org.junit.jupiter.engine.descriptor;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
+import org.junit.platform.engine.TestDescriptor;
+
+import java.net.URL;
 import java.util.List;
+import java.util.Set;
 
-public interface MavenProjectDirProvider {
-    Path getProjectDir();
-
-    Path getFileCopyBaseDir();
-
-    default List<String> getFilesToAddToBinDir() {
-        return new ArrayList<>();
+public class ContainerMatrixTestWithRunningESMongoTestsDescriptor extends ContainerMatrixTestsDescriptor {
+    public ContainerMatrixTestWithRunningESMongoTestsDescriptor(TestDescriptor parent,
+                                                                Set<Integer> extraPorts,
+                                                                List<URL> mongoDBFixtures) {
+        super(parent, "Testing with running ES and MongoDB instances.", extraPorts, mongoDBFixtures);
     }
-
-    String getUniqueId();
-
-    default boolean includeFrontend() {
-        return false;
-    }
-
 }
+
+

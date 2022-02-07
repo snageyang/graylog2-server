@@ -14,23 +14,10 @@
  * along with this program. If not, see
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
-package org.graylog.testing.completebackend;
+package org.graylog.testing.graylognode;
 
-import org.graylog.testing.elasticsearch.SearchServerInstance;
-import org.testcontainers.containers.Network;
-
-public interface GraylogBackend {
-    String uri();
-
-    int apiPort();
-
-    SearchServerInstance searchServerInstance();
-
-    int mappedPortFor(int originalPort);
-
-    void importMongoDBFixture(String resourcePath, Class<?> testClass);
-
-    void importElasticsearchFixture(String resourcePath, Class<?> testClass);
-
-    Network network();
+public class ExecutableNotFoundException extends RuntimeException {
+    public ExecutableNotFoundException(String msg) {
+        super(msg);
+    }
 }

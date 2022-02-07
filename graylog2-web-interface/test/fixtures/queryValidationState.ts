@@ -14,23 +14,18 @@
  * along with this program. If not, see
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
-package org.graylog.testing.completebackend;
 
-import org.graylog.testing.elasticsearch.SearchServerInstance;
-import org.testcontainers.containers.Network;
+import type { QueryValidationState } from 'views/components/searchbar/queryvalidation/types';
 
-public interface GraylogBackend {
-    String uri();
-
-    int apiPort();
-
-    SearchServerInstance searchServerInstance();
-
-    int mappedPortFor(int originalPort);
-
-    void importMongoDBFixture(String resourcePath, Class<?> testClass);
-
-    void importElasticsearchFixture(String resourcePath, Class<?> testClass);
-
-    Network network();
-}
+// eslint-disable-next-line import/prefer-default-export
+export const validationError: QueryValidationState = {
+  status: 'ERROR',
+  explanations: [{
+    errorType: 'ParseException',
+    errorMessage: "Cannot parse 'source: '",
+    beginLine: 1,
+    endLine: 1,
+    beginColumn: 1,
+    endColumn: 5,
+  }],
+};
