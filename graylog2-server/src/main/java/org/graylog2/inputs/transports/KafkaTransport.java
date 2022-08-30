@@ -20,6 +20,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.InstrumentedExecutorService;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -36,24 +37,14 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.graylog.shaded.kafka09.consumer.Consumer;
-import org.graylog.shaded.kafka09.consumer.ConsumerConfig;
-import org.graylog.shaded.kafka09.consumer.ConsumerIterator;
-import org.graylog.shaded.kafka09.consumer.ConsumerTimeoutException;
-import org.graylog.shaded.kafka09.consumer.KafkaStream;
-import org.graylog.shaded.kafka09.consumer.TopicFilter;
-import org.graylog.shaded.kafka09.consumer.Whitelist;
+import org.graylog.shaded.kafka09.consumer.*;
 import org.graylog.shaded.kafka09.javaapi.consumer.ConsumerConnector;
 import org.graylog.shaded.kafka09.message.MessageAndMetadata;
 import org.graylog2.plugin.LocalMetricRegistry;
 import org.graylog2.plugin.ServerStatus;
 import org.graylog2.plugin.configuration.Configuration;
 import org.graylog2.plugin.configuration.ConfigurationRequest;
-import org.graylog2.plugin.configuration.fields.BooleanField;
-import org.graylog2.plugin.configuration.fields.ConfigurationField;
-import org.graylog2.plugin.configuration.fields.DropdownField;
-import org.graylog2.plugin.configuration.fields.NumberField;
-import org.graylog2.plugin.configuration.fields.TextField;
+import org.graylog2.plugin.configuration.fields.*;
 import org.graylog2.plugin.inputs.MessageInput;
 import org.graylog2.plugin.inputs.annotations.ConfigClass;
 import org.graylog2.plugin.inputs.annotations.FactoryClass;
@@ -71,15 +62,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -275,10 +262,34 @@ public class KafkaTransport extends ThrottleableTransport {
                 if (isThrottled()) {
                     blockUntilUnthrottled();
                 }
+                byte[] _values = record.value();
+                byte[] bytes = null;
+                ObjectMapper objectMapper = new ObjectMapper();
+                HashMap hashMap = null;
+                String topic = record.topic();
+                int partition = record.partition();
+                long offset = record.offset();
+                long timestamp = record.timestamp();
+                String key =null;
+                try {
+                    if(record.key()!=null){
+                        key = new String(record.key(), "UTF-8");
+                    }
+                    hashMap = objectMapper.readValue(_values, HashMap.class);
+                    hashMap.put("topic", topic);
+                    hashMap.put("partition", partition);
+                    hashMap.put("offset", offset);
+                    hashMap.put("timestamp", timestamp);
+                    hashMap.put("key", key);
+                    String json = objectMapper.writeValueAsString(hashMap);
+                    bytes = json.getBytes("UTF-8");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    continue;
+                }
 
                 // process the message, this will immediately mark the message as having been processed. this gets tricky
                 // if we get an exception about processing it down below.
-                final byte[] bytes = record.value();
 
                 // it is possible that the message is null
                 if (bytes == null) {
@@ -311,7 +322,7 @@ public class KafkaTransport extends ThrottleableTransport {
                 final Optional<ConsumerRecords<byte[], byte[]>> consumerRecords;
                 try {
                     consumerRecords = tryPoll();
-                    if (! consumerRecords.isPresent()) {
+                    if (!consumerRecords.isPresent()) {
                         LOG.error("Caught recoverable exception. Retrying");
                         Thread.sleep(2000);
                         continue;
@@ -575,7 +586,7 @@ public class KafkaTransport extends ThrottleableTransport {
                     ConfigurationField.Optional.OPTIONAL,
                     ConfigurationField.PLACE_AT_END_POSITION,
                     TextField.Attribute.TEXTAREA
-                    ));
+            ));
 
             return cr;
         }
