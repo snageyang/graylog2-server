@@ -20,7 +20,6 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.InstrumentedExecutorService;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -62,7 +61,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -264,25 +262,22 @@ public class KafkaTransport extends ThrottleableTransport {
                 }
                 byte[] _values = record.value();
                 byte[] bytes = null;
-                ObjectMapper objectMapper = new ObjectMapper();
-                HashMap hashMap = null;
                 String topic = record.topic();
                 int partition = record.partition();
                 long offset = record.offset();
                 long timestamp = record.timestamp();
-                String key =null;
+                String key = null;
                 try {
-                    if(record.key()!=null){
+                    String kafkaMeta = ",\"topic\":\"" + topic + "\",\"partition\":" + partition + ",\"offset\":" + offset + ",\"timestamp\":" + timestamp;
+                    if (record.key() != null) {
                         key = new String(record.key(), "UTF-8");
+                        kafkaMeta += ",\"key\":\"" + key + "\"";
                     }
-                    hashMap = objectMapper.readValue(_values, HashMap.class);
-                    hashMap.put("topic", topic);
-                    hashMap.put("partition", partition);
-                    hashMap.put("offset", offset);
-                    hashMap.put("timestamp", timestamp);
-                    hashMap.put("key", key);
-                    String json = objectMapper.writeValueAsString(hashMap);
-                    bytes = json.getBytes("UTF-8");
+                    kafkaMeta += "}";
+                    byte[] kafkaMetaByteArray = kafkaMeta.getBytes("UTF-8");
+                    bytes = new byte[_values.length - 1 + kafkaMetaByteArray.length];
+                    System.arraycopy(_values, 0, bytes, 0, _values.length - 1);
+                    System.arraycopy(kafkaMetaByteArray, 0, bytes, _values.length - 1, kafkaMetaByteArray.length);
                 } catch (IOException e) {
                     e.printStackTrace();
                     continue;
